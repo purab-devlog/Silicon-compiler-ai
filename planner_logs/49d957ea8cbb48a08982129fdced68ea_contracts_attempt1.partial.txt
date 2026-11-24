@@ -1,0 +1,14 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "signature": "void task1_init(void)",
+      "peripherals": ["RCC", "GPIOB"],
+      "goal": "Initialize RCC and GPIOB for I2C1 and BH1750",
+      "depends_on": [],
+      "requirements": ["verify board pin mapping"],
+      "preconditions": ["RCC clock is enabled for GPIOB and I2C1"],
+      "postconditions": ["RCC and GPIOB are configured for I2C1 and BH1750"],
+      "acceptance_criteria": ["RCC and GPIOB are correctly configured for I2C1 and BH1750"],
+      "register_refs": [
+        {"name": "CR1", "fields": ["SWRST", "ALERT", "PEC", "POS", "ACK", "STOP", "START", "NOSTRETCH", "ENGC", "ENPEC", "ENARP", "SMBTYPE", "SMB

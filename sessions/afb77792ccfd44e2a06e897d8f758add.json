@@ -1,0 +1,12 @@
+{
+  "session_id": "afb77792ccfd44e2a06e897d8f758add",
+  "board_query": "STM32F411",
+  "mcu": "STM32F411",
+  "svd_path": "C:\\silicon-compiler\\hardware_specs\\STM32F411.svd",
+  "catalog_path": "C:\\silicon-compiler\\hardware_specs\\STM32F411_catalog.json",
+  "sensors": [],
+  "sensor_status": {},
+  "pin_map": null,
+  "compiler": null,
+  "compiler_flags": []
+}

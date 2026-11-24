@@ -1,0 +1,3 @@
+{"timestamp": "2026-11-23T09:27:20.712047+00:00", "event": "started", "run_id": "49d957ea8cbb48a08982129fdced68ea", "stage": "hardware", "attempt": 1, "model": "qwen2.5:3b", "raw_file": "C:\\silicon-compiler\\planner_logs\\49d957ea8cbb48a08982129fdced68ea_hardware_attempt1.partial.txt", "prompt_chars": 1667}
+{"timestamp": "2026-11-23T09:27:54.442792+00:00", "event": "stream_finished", "run_id": "49d957ea8cbb48a08982129fdced68ea", "stage": "hardware", "attempt": 1, "characters": 242, "done_reason": "stop"}
+{"timestamp": "2026-11-23T09:27:54.459905+00:00", "event": "json_parsed", "run_id": "49d957ea8cbb48a08982129fdced68ea", "stage": "hardware", "attempt": 1, "characters": 242}

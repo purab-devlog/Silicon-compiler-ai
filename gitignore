@@ -1,0 +1,29 @@
+# Python and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Runtime data and third-party caches
+hardware_specs/
+sensor_specs/
+sessions/
+output/
+planner_logs/
+temp/
+tmp/
+*.log
+*.partial.txt
+*.events.jsonl
+
+# Local credentials and editor files
+*.pem
+*.key
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

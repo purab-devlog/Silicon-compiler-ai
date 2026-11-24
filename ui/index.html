@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Silicon-Compiler AI</title>
+<style>
+/* ── Reset & tokens ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0d1117;
+  --surface:   #161b22;
+  --surface2:  #1f2937;
+  --border:    #30363d;
+  --accent:    #58a6ff;
+  --accent2:   #3fb950;
+  --warn:      #d29922;
+  --err:       #f85149;
+  --text:      #e6edf3;
+  --muted:     #8b949e;
+  --code-bg:   #0d1117;
+  --gutter-bg: #161b22;
+  --gutter-w:  52px;
+  --font-mono: "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, monospace;
+  --font-ui:   -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --radius:    10px;
+}
+
+body {
+  font-family: var(--font-ui);
+  background:  var(--bg);
+  color:       var(--text);
+  height:      100vh;
+  display:     flex;
+  flex-direction: column;
+  overflow:    hidden;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────── */
+#topbar {
+  display:         flex;
+  align-items:     center;
+  gap:             12px;
+  padding:         0 20px;
+  height:          52px;
+  background:      var(--surface);
+  border-bottom:   1px solid var(--border);
+  flex-shrink:     0;
+}
+#topbar .logo {
+  font-size:   15px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color:       var(--accent);
+  white-space: nowrap;
+}
+#topbar .logo span { color: var(--text); }
+
+/* board + sensor inputs */
+.hw-row {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  flex:        1;
+}
+.search-wrap {
+  position:   relative;
+  min-width:  200px;
+}
+.search-wrap input {
+  width:            100%;
+  background:       var(--surface2);
+  border:           1px solid var(--border);
+  border-radius:    var(--radius);
+  color:            var(--text);
+  font-size:        13px;
+  padding:          6px 10px;
+  outline:          none;
+  transition:       border-color .15s;
+}
+.search-wrap input:focus { border-color: var(--accent); }
+.dropdown {
+  position:    absolute;
+  top:         calc(100% + 4px);
+  left:        0;
+  right:       0;
+  background:  var(--surface2);
+  border:      1px solid var(--border);
+  border-radius: var(--radius);
+  max-height:  220px;
+  overflow-y:  auto;
+  z-index:     100;
+  display:     none;
+}
+.dropdown.open { display: block; }
+.dropdown-item {
+  padding:     7px 12px;
+  font-size:   13px;
+  cursor:      pointer;
+  font-family: var(--font-mono);
+  color:       var(--text);
+}
+.dropdown-item:hover, .dropdown-item.active { background: var(--border); }
+.dropdown-item mark {
+  background: none;
+  color:      var(--accent);
+  font-weight: 700;
+}
+
+/* sensor pills */
+.pill-wrap {
+  display:     flex;
+  align-items: center;
+  flex-wrap:   wrap;
+  gap:         6px;
+  flex:        1;
+}
+.pill {
+  display:      flex;
+  align-items:  center;
+  gap:          5px;
+  background:   var(--surface2);
+  border:       1px solid var(--border);
+  border-radius: 20px;
+  padding:      3px 10px 3px 12px;
+  font-size:    12px;
+  font-family:  var(--font-mono);
+  color:        var(--text);
+}
+.pill button {
+  background: none;
+  border:     none;
+  color:      var(--muted);
+  cursor:     pointer;
+  font-size:  14px;
+  line-height: 1;
+  padding:    0;
+}
+.pill button:hover { color: var(--err); }
+
+#btn-setup {
+  background:    var(--accent);
+  color:         #000;
+  border:        none;
+  border-radius: var(--radius);
+  padding:       7px 18px;
+  font-size:     13px;
+  font-weight:   600;
+  cursor:        pointer;
+  white-space:   nowrap;
+  transition:    opacity .15s;
+}
+#btn-setup:disabled { opacity: .45; cursor: not-allowed; }
+#btn-setup:hover:not(:disabled) { opacity: .85; }
+
+/* status dot */
+.status-dot {
+  width:         8px;
+  height:        8px;
+  border-radius: 50%;
+  background:    var(--muted);
+  flex-shrink:   0;
+}
+.status-dot.ready   { background: var(--accent2); }
+.status-dot.busy    { background: var(--warn); animation: pulse 1s infinite; }
+.status-dot.error   { background: var(--err); }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .3; }
+}
+
+/* ── Main layout ─────────────────────────────────────────────────── */
+#main {
+  display:    flex;
+  flex:       1;
+  overflow:   hidden;
+}
+
+/* ── Loading overlay ─────────────────────────────────────────────── */
+#loading-pane {
+  position:   absolute;
+  inset:      52px 0 0 0;
+  background: var(--bg);
+  z-index:    50;
+  display:    flex;
+  flex-direction: column;
+  align-items:    center;
+  justify-content: center;
+  gap:        24px;
+}
+#loading-pane.hidden { display: none; }
+
+.spinner {
+  width:  40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#loading-log {
+  width:        min(560px, 90vw);
+  max-height:   260px;
+  overflow-y:   auto;
+  background:   var(--surface);
+  border:       1px solid var(--border);
+  border-radius: var(--radius);
+  padding:      14px 16px;
+  font-family:  var(--font-mono);
+  font-size:    12.5px;
+  line-height:  1.7;
+}
+.log-line           { color: var(--muted); }
+.log-line.ok        { color: var(--accent2); }
+.log-line.warn      { color: var(--warn); }
+.log-line.err       { color: var(--err); }
+
+/* ── Left: chat panel ─────────────────────────────────────────────── */
+#chat-panel {
+  width:          360px;
+  min-width:      280px;
+  flex-shrink:    0;
+  display:        flex;
+  flex-direction: column;
+  border-right:   1px solid var(--border);
+  background:     var(--surface);
+}
+#chat-panel.locked { pointer-events: none; opacity: .4; }
+
+#chat-msgs {
+  flex:        1;
+  overflow-y:  auto;
+  padding:     16px;
+  display:     flex;
+  flex-direction: column;
+  gap:         12px;
+}
+.msg {
+  max-width:    90%;
+  padding:      9px 13px;
+  border-radius: 10px;
+  font-size:    13.5px;
+  line-height:  1.55;
+  word-break:   break-word;
+}
+.msg.user {
+  align-self:  flex-end;
+  background:  var(--accent);
+  color:       #000;
+  border-bottom-right-radius: 2px;
+}
+.msg.ai {
+  align-self:  flex-start;
+  background:  var(--surface2);
+  border:      1px solid var(--border);
+  border-bottom-left-radius: 2px;
+  color:       var(--text);
+}
+
+#chat-form {
+  display:  flex;
+  gap:      8px;
+  padding:  12px;
+  border-top: 1px solid var(--border);
+}
+#chat-input {
+  flex:          1;
+  background:    var(--surface2);
+  border:        1px solid var(--border);
+  border-radius: var(--radius);
+  color:         var(--text);
+  font-size:     13px;
+  padding:       8px 12px;
+  resize:        none;
+  outline:       none;
+  min-height:    38px;
+  max-height:    120px;
+  font-family:   var(--font-ui);
+  transition:    border-color .15s;
+}
+#chat-input:focus { border-color: var(--accent); }
+#chat-input:disabled { opacity: .4; }
+
+#btn-send {
+  background:    var(--accent);
+  color:         #000;
+  border:        none;
+  border-radius: var(--radius);
+  padding:       0 16px;
+  font-size:     18px;
+  cursor:        pointer;
+  transition:    opacity .15s;
+}
+#btn-send:disabled { opacity: .4; cursor: not-allowed; }
+#btn-send:hover:not(:disabled) { opacity: .8; }
+
+/* ── Middle: task list ────────────────────────────────────────────── */
+#task-panel {
+  width:          238px;
+  flex-shrink:    0;
+  border-right:   1px solid var(--border);
+  display:        flex;
+  flex-direction: column;
+  background:     var(--surface);
+}
+#task-panel h3 {
+  font-size:   11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color:       var(--muted);
+  padding:     14px 14px 8px;
+  border-bottom: 1px solid var(--border);
+}
+#task-list {
+  flex:       1;
+  overflow-y: auto;
+  padding:    8px 0;
+}
+.task-item {
+  display:     flex;
+  align-items: flex-start;
+  gap:         10px;
+  padding:     8px 14px;
+  cursor:      pointer;
+  border-left: 3px solid transparent;
+  transition:  background .12s, border-color .12s;
+}
+.task-item:hover            { background: var(--surface2); }
+.task-item.active           { border-left-color: var(--accent); background: var(--surface2); }
+.task-item.done             { border-left-color: var(--accent2); }
+.task-item.generating       { border-left-color: var(--warn); }
+
+.task-badge {
+  width:          20px;
+  height:         20px;
+  border-radius:  50%;
+  background:     var(--border);
+  color:          var(--muted);
+  font-size:      10px;
+  font-weight:    700;
+  display:        flex;
+  align-items:    center;
+  justify-content: center;
+  flex-shrink:    0;
+  margin-top:     1px;
+}
+.task-item.done       .task-badge { background: var(--accent2); color: #000; }
+.task-item.generating .task-badge { background: var(--warn);    color: #000; }
+.task-item.active     .task-badge { background: var(--accent);  color: #000; }
+
+.task-info { overflow: hidden; }
+.task-sig {
+  font-family: var(--font-mono);
+  font-size:   11px;
+  color:       var(--text);
+  white-space: nowrap;
+  overflow:    hidden;
+  text-overflow: ellipsis;
+}
+.task-goal {
+  font-size:  11px;
+  color:      var(--muted);
+  margin-top: 2px;
+  display:    -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow:   hidden;
+}
+
+/* compile badge at bottom of task panel */
+#compile-badge {
+  margin:        10px 14px;
+  padding:       8px 10px;
+  border-radius: var(--radius);
+  font-size:     12px;
+  font-weight:   600;
+  text-align:    center;
+  display:       none;
+}
+#compile-badge.ok   { background: #1a3a2a; color: var(--accent2); display: block; }
+#compile-badge.fail { background: #3a1a1a; color: var(--err);     display: block; }
+
+/* ── Right: code panel ────────────────────────────────────────────── */
+#code-panel {
+  flex:           1;
+  display:        flex;
+  flex-direction: column;
+  overflow:       hidden;
+  background:     var(--code-bg);
+}
+
+#code-toolbar {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  padding:       8px 14px;
+  border-bottom: 1px solid var(--border);
+  background:    var(--surface);
+  flex-shrink:   0;
+}
+#code-filename {
+  font-family: var(--font-mono);
+  font-size:   12px;
+  color:       var(--muted);
+  flex:        1;
+}
+#btn-copy {
+  background:    var(--surface2);
+  border:        1px solid var(--border);
+  border-radius: var(--radius);
+  color:         var(--text);
+  font-size:     12px;
+  padding:       4px 12px;
+  cursor:        pointer;
+  transition:    background .12s;
+}
+#btn-copy:hover { background: var(--border); }
+
+/* IDE code area */
+#code-wrap {
+  flex:        1;
+  overflow:    auto;
+  display:     flex;
+  position:    relative;
+}
+
+#line-gutter {
+  position:    sticky;
+  left:        0;
+  min-width:   var(--gutter-w);
+  background:  var(--gutter-bg);
+  border-right: 1px solid var(--border);
+  padding:     16px 0;
+  user-select: none;
+  flex-shrink: 0;
+  z-index:     2;
+}
+.gutter-line {
+  height:     20px;
+  line-height: 20px;
+  text-align:  right;
+  padding:     0 10px 0 6px;
+  font-family: var(--font-mono);
+  font-size:   12.5px;
+  color:       var(--muted);
+  position:    relative;
+}
+.gutter-line.has-error   { background: rgba(248,81,73,.15); color: var(--err); }
+.gutter-line.has-warning { background: rgba(210,153,34,.12); color: var(--warn); }
+.gutter-line .err-icon   { margin-left: 4px; }
+
+/* error tooltip */
+.err-tooltip {
+  display:       none;
+  position:      absolute;
+  left:          calc(var(--gutter-w) + 4px);
+  top:           0;
+  background:    #2d1a1a;
+  border:        1px solid var(--err);
+  border-radius: 5px;
+  padding:       5px 10px;
+  font-size:     11.5px;
+  color:         var(--err);
+  white-space:   nowrap;
+  z-index:       10;
+  pointer-events: none;
+}
+.gutter-line.has-error:hover .err-tooltip   { display: block; }
+.gutter-line.has-warning .err-tooltip       { border-color: var(--warn); color: var(--warn); background: #2a2010; }
+.gutter-line.has-warning:hover .err-tooltip { display: block; }
+
+#code-content {
+  flex:        1;
+  padding:     16px 20px;
+  font-family: var(--font-mono);
+  font-size:   12.5px;
+  line-height: 20px;
+  color:       var(--text);
+  white-space: pre;
+  outline:     none;
+  min-width:   0;
+  overflow-wrap: normal;
+}
+.code-line              { min-height: 20px; }
+.code-line.err-line     { background: rgba(248,81,73,.08); }
+.code-line.warn-line    { background: rgba(210,153,34,.06); }
+
+/* keyword highlighting — minimal, no library */
+.kw   { color: #ff7b72; }
+.ty   { color: #79c0ff; }
+.cmt  { color: #8b949e; font-style: italic; }
+.str  { color: #a5d6ff; }
+.num  { color: #f2cc60; }
+.pre  { color: #d2a8ff; }
+
+/* placeholder text */
+#code-placeholder {
+  position:  absolute;
+  inset:     0;
+  display:   flex;
+  flex-direction: column;
+  align-items:    center;
+  justify-content: center;
+  gap:       10px;
+  color:     var(--muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+#code-placeholder svg { opacity: .3; }
+#code-placeholder.hidden { display: none; }
+
+/* Live execution monitor */
+#activity-panel { margin:12px; padding:14px; background:linear-gradient(140deg,#1a2636,#151d29); border:1px solid #34455b; border-radius:12px; display:none; flex-direction:column; gap:9px; }
+#activity-panel.visible { display:flex; }
+.activity-head { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.activity-head strong { font-size:12px; letter-spacing:.02em; }
+#activity-elapsed { font:11px var(--font-mono); color:var(--muted); }
+#activity-stage { font-size:12px; color:var(--accent); line-height:1.5; }
+#activity-detail { font:11px/1.5 var(--font-mono); color:var(--muted); overflow-wrap:anywhere; }
+.activity-track { height:4px; border-radius:5px; background:#2a3545; overflow:hidden; }
+.activity-track::after { content:''; display:block; width:34%; height:100%; background:var(--accent); border-radius:5px; animation:activity-move 1.7s ease-in-out infinite alternate; }
+#activity-panel.finished .activity-track::after { width:100%; animation:none; background:var(--accent2); }
+#activity-panel.failed .activity-track::after { width:100%; animation:none; background:var(--err); }
+@keyframes activity-move { from { transform:translateX(0); } to { transform:translateX(195%); } }
+#activity-log { font:10.5px/1.5 var(--font-mono); color:#9eafc4; height:130px; min-height:80px; overflow-y:scroll; overscroll-behavior:contain; display:flex; flex-direction:column; gap:3px; }
+#activity-log div { overflow-wrap:anywhere; }
+#topbar { min-height:56px; height:auto; flex-wrap:wrap; padding:9px 18px; }
+#main { min-height:0; }
+#chat-msgs { padding:18px; }
+#code-toolbar { min-height:46px; }
+#btn-copy, #btn-setup, #btn-send { transition:background .18s, transform .18s; }
+#btn-copy:active, #btn-setup:active, #btn-send:active { transform:scale(.97); }
+@media (max-width:1050px) { #chat-panel { width:300px; min-width:240px; } #task-panel { width:190px; } }
+@media (max-width:760px) { body { height:100dvh; } #main { flex-wrap:wrap; overflow:auto; } #chat-panel { width:100%; min-height:330px; height:45vh; border-bottom:1px solid var(--border); } #task-panel { width:100%; min-height:120px; max-height:220px; border-bottom:1px solid var(--border); } #code-panel { width:100%; min-height:380px; } .hw-row { flex-wrap:wrap; } .search-wrap { min-width:150px; } }
+</style>
+</head>
+<body>
+
+<!-- ── Top bar ───────────────────────────────────────────────────────── -->
+<div id="topbar">
+  <div class="logo">Silicon<span>-Compiler</span></div>
+
+  <div class="hw-row">
+    <!-- Board search -->
+    <div class="search-wrap" id="board-wrap">
+      <input id="board-input" type="text" placeholder="Board / MCU  (e.g. STM32F411)" autocomplete="off"/>
+      <div class="dropdown" id="board-dropdown"></div>
+    </div>
+
+    <!-- Sensor pills + add -->
+    <div class="pill-wrap" id="sensor-pills"></div>
+    <div class="search-wrap" id="sensor-wrap" style="min-width:170px">
+      <input id="sensor-input" type="text" placeholder="Add sensor  (optional)" autocomplete="off"/>
+      <div class="dropdown" id="sensor-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="status-dot" id="status-dot" title="Idle"></div>
+  <button id="btn-setup" disabled>Setup</button>
+</div>
+
+<!-- ── Loading overlay ───────────────────────────────────────────────── -->
+<div id="loading-pane" class="hidden">
+  <div class="spinner"></div>
+  <div id="loading-log"></div>
+</div>
+
+<!-- ── Main workspace ────────────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- Chat -->
+  <div id="chat-panel" class="locked">
+    <div id="chat-msgs">
+      <div class="msg ai">Complete the Setup step above, then describe what you want the firmware to do.</div>
+    </div>
+    <form id="chat-form" onsubmit="return false;">
+      <textarea id="chat-input" placeholder="Describe firmware behaviour…" rows="1" disabled></textarea>
+      <button id="btn-send" disabled>&#x27A4;</button>
+    </form>
+  </div>
+
+  <!-- Task list -->
+  <div id="task-panel">
+    <h3>Tasks</h3>
+    <div id="activity-panel" role="status" aria-live="polite">
+      <div class="activity-head"><strong>◉ Model activity</strong><span id="activity-elapsed">00:00</span></div>
+      <div id="activity-stage">Waiting for a task…</div>
+      <div class="activity-track"></div>
+      <div id="activity-detail">Waiting for backend events</div>
+      <div id="activity-log"></div>
+      <pre id="planner-preview" aria-label="Live planner JSON" style="display:none;white-space:pre-wrap;overflow-wrap:anywhere;height:clamp(240px,45vh,560px);min-height:240px;overflow-y:scroll;overscroll-behavior:contain;background:#0d1117;border:1px solid #34455b;padding:10px;border-radius:6px;font:11px/1.5 var(--font-mono);color:#a5d6ff"></pre>
+    </div>
+    <div id="task-list"></div>
+    <div id="compile-badge"></div>
+  </div>
+
+  <!-- Code -->
+  <div id="code-panel">
+    <div id="code-toolbar">
+      <span id="code-filename">firmware.c</span>
+      <button id="btn-copy" onclick="copyCode()">Copy</button>
+    </div>
+    <div id="code-wrap">
+      <div id="line-gutter"></div>
+      <div id="code-content"></div>
+      <div id="code-placeholder">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+          <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+        </svg>
+        <span>Generated firmware will appear here</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════════════════════════
+const API = "http://127.0.0.1:8000";
+
+let selectedBoard   = "";
+let selectedSensors = [];   // string[]
+let setupDone       = false;
+let generating      = false;
+let activeSessionId = null;
+let activityStart = 0;
+let activityTimer = null;
+let activityLastEvent = 0;
+let plannerPreviewText = "";
+
+// Per-task raw token buffers (keyed by task id)
+const taskBuffers = {};
+// Final merged code
+let mergedCode    = "";
+// Compile errors [{line, col, severity, msg}]
+let compileErrors = [];
+
+// ═══════════════════════════════════════════════════════════════════
+// DOM refs
+// ═══════════════════════════════════════════════════════════════════
+const boardInput      = document.getElementById("board-input");
+const boardDropdown   = document.getElementById("board-dropdown");
+const sensorInput     = document.getElementById("sensor-input");
+const sensorDropdown  = document.getElementById("sensor-dropdown");
+const sensorPills     = document.getElementById("sensor-pills");
+const btnSetup        = document.getElementById("btn-setup");
+const statusDot       = document.getElementById("status-dot");
+const loadingPane     = document.getElementById("loading-pane");
+const loadingLog      = document.getElementById("loading-log");
+const chatPanel       = document.getElementById("chat-panel");
+const chatMsgs        = document.getElementById("chat-msgs");
+const chatInput       = document.getElementById("chat-input");
+const btnSend         = document.getElementById("btn-send");
+const taskList        = document.getElementById("task-list");
+const compileBadge    = document.getElementById("compile-badge");
+const lineGutter      = document.getElementById("line-gutter");
+const codeContent     = document.getElementById("code-content");
+const codePlaceholder = document.getElementById("code-placeholder");
+const codeFilename    = document.getElementById("code-filename");
+
+// ═══════════════════════════════════════════════════════════════════
+// Status helpers
+// ═══════════════════════════════════════════════════════════════════
+function setStatus(state) {   // "idle" | "busy" | "ready" | "error"
+  statusDot.className = "status-dot " + (state === "idle" ? "" : state);
+}
+
+function activityLog(text) {
+  const log = document.getElementById('activity-log');
+  const line = document.createElement('div');
+  line.textContent = '• ' + text;
+  log.prepend(line);
+  while (log.children.length > 200) log.lastChild.remove();
+}
+function activityUpdate(stage, detail, log = false) {
+  const panel = document.getElementById('activity-panel');
+  panel.classList.add('visible');
+  document.getElementById('activity-stage').textContent = stage;
+  document.getElementById('activity-detail').textContent = detail || '';
+  activityLastEvent = Date.now();
+  if (log) activityLog(stage);
+}
+function activityBegin() {
+  clearInterval(activityTimer);
+  const panel = document.getElementById('activity-panel');
+  panel.className = 'visible';
+  document.getElementById('activity-log').textContent = '';
+  plannerPreviewText = '';
+  document.getElementById('planner-preview').textContent = '';
+  document.getElementById('planner-preview').style.display = 'none';
+  activityStart = Date.now(); activityLastEvent = activityStart;
+  activityUpdate('Starting generation', 'Connecting to backend…', true);
+  activityTimer = setInterval(() => {
+    const secs = Math.floor((Date.now() - activityStart)/1000);
+    document.getElementById('activity-elapsed').textContent =
+      String(Math.floor(secs/60)).padStart(2,'0') + ':' + String(secs%60).padStart(2,'0');
+    if (Date.now() - activityLastEvent > 20000 && generating)
+      document.getElementById('activity-detail').textContent = 'Still waiting for model output. Local inference can be slow; check Ollama if this persists.';
+  }, 1000);
+}
+function activityEnd(ok, message) {
+  clearInterval(activityTimer);
+  const panel = document.getElementById('activity-panel');
+  panel.classList.add(ok ? 'finished' : 'failed');
+  activityUpdate(ok ? 'Completed' : 'Stopped', message, true);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Board autocomplete
+// ═══════════════════════════════════════════════════════════════════
+let boardDebounce = null;
+
+boardInput.addEventListener("input", () => {
+  const q = boardInput.value.trim();
+  selectedBoard = "";
+  btnSetup.disabled = true;
+  clearTimeout(boardDebounce);
+  if (q.length < 2) { closeDropdown(boardDropdown); return; }
+  boardDebounce = setTimeout(() => fetchBoards(q), 180);
+});
+
+boardInput.addEventListener("keydown", e => dropdownNav(e, boardDropdown, chooseBoardItem));
+boardInput.addEventListener("blur", () => setTimeout(() => closeDropdown(boardDropdown), 160));
+
+async function fetchBoards(q) {
+  try {
+    const r = await fetch(`${API}/boards/search?q=${encodeURIComponent(q)}`);
+    const j = await r.json();
+    renderDropdown(boardDropdown, j.results, q, chooseBoardItem);
+  } catch { /* server not up yet */ }
+}
+
+function chooseBoardItem(name) {
+  boardInput.value  = name;
+  selectedBoard     = name;
+  btnSetup.disabled = false;
+  closeDropdown(boardDropdown);
+}
+
+// Sensor autocomplete — same catalog, free-text entry also allowed
+sensorInput.addEventListener("input", () => {
+  const q = sensorInput.value.trim();
+  closeDropdown(sensorDropdown); // Sensor part numbers are free-text, not MCU search results.
+});
+
+sensorInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && sensorInput.value.trim()) {
+    e.preventDefault();
+    addSensor(sensorInput.value.trim().toUpperCase());
+    sensorInput.value = "";
+    closeDropdown(sensorDropdown);
+    return;
+  }
+  dropdownNav(e, sensorDropdown, addSensorFromDropdown);
+});
+sensorInput.addEventListener("blur", () => setTimeout(() => closeDropdown(sensorDropdown), 160));
+
+async function fetchSensors(q) {
+  try {
+    const r = await fetch(`${API}/boards/search?q=${encodeURIComponent(q)}`);
+    const j = await r.json();
+    renderDropdown(sensorDropdown, j.results, q, addSensorFromDropdown);
+  } catch { /* ignore */ }
+}
+
+function addSensorFromDropdown(name) {
+  addSensor(name);
+  sensorInput.value = "";
+  closeDropdown(sensorDropdown);
+}
+
+function addSensor(name) {
+  if (!name || selectedSensors.includes(name)) return;
+  selectedSensors.push(name);
+  renderPills();
+}
+
+function removeSensor(name) {
+  selectedSensors = selectedSensors.filter(s => s !== name);
+  renderPills();
+}
+
+function renderPills() {
+  sensorPills.innerHTML = "";
+  selectedSensors.forEach(s => {
+    const pill = document.createElement("div");
+    pill.className = "pill";
+    const label = document.createElement('span'); label.textContent = s;
+    const remove = document.createElement('button'); remove.textContent = '×';
+    remove.title = 'Remove'; remove.addEventListener('click', () => removeSensor(s));
+    pill.append(label, remove);
+    sensorPills.appendChild(pill);
+  });
+}
+
+// ── Generic dropdown helpers ─────────────────────────────────────
+function renderDropdown(el, items, query, onSelect) {
+  el.innerHTML = "";
+  if (!items.length) { closeDropdown(el); return; }
+  items.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "dropdown-item";
+    div.textContent = item;
+    div.addEventListener("mousedown", e => { e.preventDefault(); onSelect(item); });
+    el.appendChild(div);
+  });
+  el.classList.add("open");
+}
+
+function highlight(text, query) {
+  const idx = text.toUpperCase().indexOf(query.toUpperCase());
+  if (idx === -1) return text;
+  return (
+    text.slice(0, idx) +
+    "<mark>" + text.slice(idx, idx + query.length) + "</mark>" +
+    text.slice(idx + query.length)
+  );
+}
+
+function closeDropdown(el) { el.classList.remove("open"); el.innerHTML = ""; }
+
+function dropdownNav(e, el, onSelect) {
+  const items = el.querySelectorAll(".dropdown-item");
+  if (!items.length) return;
+  const active = el.querySelector(".active");
+  let idx = Array.from(items).indexOf(active);
+  if (e.key === "ArrowDown") { e.preventDefault(); idx = Math.min(idx + 1, items.length - 1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); idx = Math.max(idx - 1, 0); }
+  else if (e.key === "Enter" && active) { e.preventDefault(); onSelect(active.textContent.trim()); return; }
+  else if (e.key === "Escape") { closeDropdown(el); return; }
+  else return;
+  items.forEach((it, i) => it.classList.toggle("active", i === idx));
+  items[idx]?.scrollIntoView({ block: "nearest" });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Setup flow
+// ═══════════════════════════════════════════════════════════════════
+btnSetup.addEventListener("click", runSetup);
+
+async function runSetup() {
+  if (!selectedBoard) return;
+  btnSetup.disabled = true;
+  setStatus("busy");
+  loadingLog.innerHTML = "";
+  loadingPane.classList.remove("hidden");
+
+  const body = { board: selectedBoard, sensors: selectedSensors };
+  const es   = await openSSE(`${API}/setup`, body);
+
+  es.onmessage = e => {
+    const ev = JSON.parse(e.data);
+    if (ev.type === "step") {
+      appendLog(ev.msg, "ok");
+    } else if (ev.type === "error") {
+      appendLog("ERROR: " + ev.msg, "err");
+      setStatus("error");
+      es.close();
+      btnSetup.disabled = false;
+    } else if (ev.type === "done") {
+      activeSessionId = ev.session_id || null;
+      appendLog(ev.msg, "ok");
+      setStatus("ready");
+      setupDone = true;
+      setTimeout(() => {
+        loadingPane.classList.add("hidden");
+        unlockChat();
+      }, 800);
+      es.close();
+    }
+  };
+
+  es.onerror = () => {
+    appendLog("Connection to server lost.", "err");
+    setStatus("error");
+    es.close();
+    btnSetup.disabled = false;
+  };
+}
+
+function appendLog(msg, cls = "") {
+  const line = document.createElement("div");
+  line.className = "log-line " + cls;
+  // prefix icon
+  const icon = cls === "ok" ? "✓ " : cls === "err" ? "✗ " : cls === "warn" ? "⚠ " : "• ";
+  line.textContent = icon + msg;
+  loadingLog.appendChild(line);
+  loadingLog.scrollTop = loadingLog.scrollHeight;
+}
+
+function unlockChat() {
+  chatPanel.classList.remove("locked");
+  chatInput.disabled = false;
+  btnSend.disabled   = false;
+  chatInput.focus();
+  addMessage("ai", `Hardware context for ${selectedBoard} is ready.${selectedSensors.length ? " Sensors: " + selectedSensors.join(", ") + "." : ""} Describe what you want the firmware to do.`);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Chat / generate flow
+// ═══════════════════════════════════════════════════════════════════
+chatInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitChat(); }
+  // Auto-grow textarea
+  chatInput.style.height = "auto";
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + "px";
+});
+
+btnSend.addEventListener("click", submitChat);
+
+async function submitChat() {
+  const text = chatInput.value.trim();
+  if (!text || generating || !setupDone) return;
+
+  generating = true;
+  activityBegin();
+  chatInput.disabled = true;
+  btnSend.disabled   = true;
+  chatInput.value    = "";
+  chatInput.style.height = "auto";
+
+  addMessage("user", text);
+  addMessage("ai",   "Generating firmware…");
+  setStatus("busy");
+
+  // Reset state
+  taskList.innerHTML = "";
+  compileBadge.style.display = "none";
+  compileBadge.className = "compile-badge";
+  mergedCode    = "";
+  compileErrors = [];
+  Object.keys(taskBuffers).forEach(k => delete taskBuffers[k]);
+  clearCode();
+
+  const es = await openSSE(`${API}/generate`, { instruction: text, session_id: activeSessionId });
+
+  es.onmessage = async e => {
+    const ev = JSON.parse(e.data);
+
+    if (ev.type === "heartbeat") {
+      if (Date.now() - activityLastEvent > 12000) activityUpdate(document.getElementById('activity-stage').textContent, 'Backend connected · no model tokens received recently');
+    } else if (ev.type === "stage") {
+      activityUpdate(ev.msg || ev.stage, 'Planner stage: ' + (ev.stage || 'running'), true);
+    } else if (ev.type === "planner_token") {
+      const preview = document.getElementById('planner-preview');
+      preview.style.display = 'block';
+      const followTail = preview.scrollHeight - preview.scrollTop - preview.clientHeight < 50;
+      plannerPreviewText += ev.text || '';
+      preview.textContent = plannerPreviewText;
+      if (followTail) preview.scrollTop = preview.scrollHeight;
+      activityUpdate(`Qwen streaming · ${ev.characters || plannerPreviewText.length} chars`, 'Receiving planner JSON in real time');
+    } else if (ev.type === "planner_stream_done") {
+      activityUpdate('Planner response received', `${ev.characters || 0} chars · validating JSON`, true);
+    } else if (ev.type === "model_progress") {
+      if (ev.characters === 0 && plannerPreviewText) {
+        plannerPreviewText += '\n\n──────── New planner attempt / stage ────────\n';
+        document.getElementById('planner-preview').textContent = plannerPreviewText;
+      }
+      activityUpdate(ev.msg || 'Model generating', `${ev.model || 'Qwen'} · ${ev.characters || 0} characters received`);
+    } else if (ev.type === "plan_validation") {
+      activityUpdate('Validating hardware plan', ev.valid ? 'Plan accepted' : 'Plan rejected', true);
+    } else if (ev.type === "validation_failed") {
+      activityUpdate('Validation / repair', ev.msg || 'Reviewing diagnostics', true);
+      activityLog('Retry reason: ' + (ev.msg || 'Validation failed'));
+    } else if (ev.type === "step") {
+      activityUpdate(ev.msg, 'Backend processing', true);
+      updateLastAiMsg("⚙ " + ev.msg);
+
+    } else if (ev.type === "plan") {
+      renderTaskList(ev.tasks);
+      activityUpdate("Task plan ready", `${ev.tasks.length} function contracts`, true);
+      updateLastAiMsg(`Plan ready — ${ev.tasks.length} task${ev.tasks.length !== 1 ? "s" : ""}. Generating code…`);
+
+    } else if (ev.type === "task_start") {
+      activityUpdate(`Generating task ${ev.id}`, ev.sig, true);
+      taskBuffers[ev.id] = "";
+      setTaskState(ev.id, "generating");
+      codeFilename.textContent = `firmware.c  —  task ${ev.id}: ${ev.sig}`;
+
+    } else if (ev.type === "token") {
+      taskBuffers[ev.id] = (taskBuffers[ev.id] || "") + ev.text;
+      // Stream live into code panel while this task is generating
+      renderCode(taskBuffers[ev.id], []);
+
+    } else if (ev.type === "task_done") {
+      setTaskState(ev.id, "done");
+      activityUpdate(`Task ${ev.id} complete`, "Continuing pipeline", true);
+
+    } else if (ev.type === "merge_done") {
+      mergedCode = ev.code;
+      activityUpdate("Final source assembled", "Running GCC syntax check", true);
+      codeFilename.textContent = "firmware.c";
+      renderCode(mergedCode, []);
+      updateLastAiMsg("Code generated. Running compiler…");
+      es.close();
+      await runCompile();
+
+    } else if (ev.type === "error") {
+      updateLastAiMsg("⚠ Error: " + ev.msg);
+      activityEnd(false, ev.msg);
+      setStatus("error");
+      es.close();
+      finishGenerate();
+    }
+  };
+
+  es.onerror = () => {
+    updateLastAiMsg("⚠ Connection lost.");
+    activityEnd(false, "Connection lost");
+    setStatus("error");
+    es.close();
+    finishGenerate();
+  };
+}
+
+async function runCompile() {
+  try {
+    const r = await fetch(`${API}/compile`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ code: mergedCode, session_id: activeSessionId }),
+    });
+    const result = await r.json();
+    compileErrors = result.errors || [];
+    renderCode(mergedCode, compileErrors);
+
+    if (result.ok) {
+      compileBadge.textContent = "✓  Compiled clean";
+      compileBadge.className   = "compile-badge ok"; // id selector in CSS
+      compileBadge.id          = "compile-badge";
+      compileBadge.style.cssText = "display:block;background:#1a3a2a;color:#3fb950;margin:10px 14px;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:600;text-align:center;";
+      updateLastAiMsg("✓ Compiled successfully. Firmware is ready.");
+      activityEnd(true, "GCC syntax check passed");
+      setStatus("ready");
+    } else {
+      const errCount  = compileErrors.filter(e => e.severity === "error").length;
+      const warnCount = compileErrors.filter(e => e.severity === "warning").length;
+      compileBadge.textContent = `✗  ${errCount} error${errCount !== 1 ? "s" : ""}, ${warnCount} warning${warnCount !== 1 ? "s" : ""}`;
+      compileBadge.style.cssText = "display:block;background:#3a1a1a;color:#f85149;margin:10px 14px;padding:8px 10px;border-radius:8px;font-size:12px;font-weight:600;text-align:center;";
+      updateLastAiMsg(`Compile finished with ${errCount} error(s). Check the gutter.`);
+      activityEnd(false, "GCC reported errors");
+      setStatus("error");
+    }
+  } catch (err) {
+    updateLastAiMsg("⚠ Compiler call failed: " + err.message);
+    activityEnd(false, err.message);
+    setStatus("error");
+  }
+  finishGenerate();
+}
+
+function finishGenerate() {
+  generating         = false;
+  chatInput.disabled = false;
+  btnSend.disabled   = false;
+  chatInput.focus();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Task list UI
+// ═══════════════════════════════════════════════════════════════════
+function renderTaskList(tasks) {
+  taskList.innerHTML = "";
+  tasks.forEach(t => {
+    const el = document.createElement("div");
+    el.className   = "task-item";
+    el.id          = `task-${t.id}`;
+    el.dataset.id  = t.id;
+    el.innerHTML   = `
+      <div class="task-badge">${t.id}</div>
+      <div class="task-info">
+        <div class="task-sig">${escHtml(shortSig(t.signature))}</div>
+        <div class="task-goal">${escHtml(t.goal)}</div>
+      </div>`;
+    taskList.appendChild(el);
+  });
+}
+
+function setTaskState(id, state) {
+  const el = document.getElementById(`task-${id}`);
+  if (!el) return;
+  el.classList.remove("done", "generating", "active");
+  el.classList.add(state);
+}
+
+function shortSig(sig) {
+  // Show just "void foo(...)" trimmed
+  return sig.length > 28 ? sig.slice(0, 26) + "…)" : sig;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Code panel + gutter
+// ═══════════════════════════════════════════════════════════════════
+function clearCode() {
+  lineGutter.innerHTML   = "";
+  codeContent.innerHTML  = "";
+  codePlaceholder.classList.remove("hidden");
+}
+
+function renderCode(source, errors) {
+  codePlaceholder.classList.add("hidden");
+
+  // Build error map {lineNum -> [{sev, msg}]}
+  const errMap = {};
+  errors.forEach(e => {
+    if (!errMap[e.line]) errMap[e.line] = [];
+    errMap[e.line].push(e);
+  });
+
+  const lines = source.split("\n");
+
+  // ── Gutter ─────────────────────────────────────────────────────
+  lineGutter.innerHTML = "";
+  lines.forEach((_, i) => {
+    const lineNo = i + 1;
+    const errs   = errMap[lineNo] || [];
+    const hasErr  = errs.some(e => e.severity === "error");
+    const hasWarn = errs.some(e => e.severity === "warning");
+
+    const div = document.createElement("div");
+    div.className = "gutter-line" +
+      (hasErr ? " has-error" : hasWarn ? " has-warning" : "");
+    div.textContent = lineNo;
+
+    if (errs.length) {
+      const icon = document.createElement("span");
+      icon.className   = "err-icon";
+      icon.textContent = hasErr ? "●" : "▲";
+
+      const tip = document.createElement("span");
+      tip.className = "err-tooltip";
+      tip.textContent = errs.map(e => `${e.severity}: ${e.msg}`).join("  |  ");
+
+      div.appendChild(icon);
+      div.appendChild(tip);
+    }
+
+    lineGutter.appendChild(div);
+  });
+
+  // ── Code content (syntax highlighted) ──────────────────────────
+  codeContent.innerHTML = "";
+  lines.forEach((line, i) => {
+    const lineNo = i + 1;
+    const errs   = errMap[lineNo] || [];
+    const hasErr  = errs.some(e => e.severity === "error");
+    const hasWarn = errs.some(e => e.severity === "warning");
+
+    const div = document.createElement("div");
+    div.className = "code-line" +
+      (hasErr ? " err-line" : hasWarn ? " warn-line" : "");
+    div.innerHTML = syntaxHL(line);
+    codeContent.appendChild(div);
+  });
+}
+
+// ── Minimal C syntax highlighter ──────────────────────────────────
+const KW_RE  = /\b(void|int|uint8_t|uint16_t|uint32_t|uint64_t|int8_t|int16_t|int32_t|char|float|double|unsigned|signed|long|short|const|volatile|static|extern|return|if|else|while|for|do|break|continue|switch|case|default|struct|enum|typedef|sizeof|NULL|true|false)\b/g;
+const TY_RE  = /\b(RCC|GPIO|SPI|I2C|USART|UART|DMA|TIM|ADC|CRC|FLASH|PWR|SYSCFG|EXTI|NVIC|SCB|SysTick)\w*/g;
+const CMT_RE = /(\/\/[^\n]*)|(\/\*[\s\S]*?\*\/)/g;
+const STR_RE = /"([^"\\]|\\.)*"/g;
+const NUM_RE = /\b(0x[0-9A-Fa-f]+|\d+[uUlL]*)\b/g;
+const PRE_RE = /^(\s*#\w+.*)/;
+
+function syntaxHL(line) {
+  // Escape HTML first
+  let s = line
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // Preprocessor line
+  if (PRE_RE.test(s.trim())) {
+    return `<span class="pre">${s}</span>`;
+  }
+
+  // We do a single pass using a combined regex to avoid nested replacements.
+  // Order matters: comments first, then strings, then keywords, then types, then numbers.
+  const COMBINED = new RegExp(
+    `(\/\/[^\n]*|\/\\*[\\s\\S]*?\\*\/)` +  // comments
+    `|("(?:[^"\\\\]|\\\\.)*")`             +  // strings
+    `|\\b(void|int|uint(?:8|16|32|64)_t|int(?:8|16|32)_t|char|float|double|unsigned|signed|long|short|const|volatile|static|extern|return|if|else|while|for|do|break|continue|switch|case|default|struct|enum|typedef|sizeof|NULL|true|false)\\b` +
+    `|\\b((?:RCC|GPIO|SPI|I2C|USART|UART|DMA|TIM|ADC|CRC|FLASH|PWR|SYSCFG|EXTI|NVIC|SCB|SysTick)\\w*)` +
+    `|\\b(0x[0-9A-Fa-f]+|\\d+[uUlL]*)\\b`,
+    "g"
+  );
+
+  return s.replace(COMBINED, (_, cmt, str, kw, ty, num) => {
+    if (cmt) return `<span class="cmt">${cmt}</span>`;
+    if (str) return `<span class="str">${str}</span>`;
+    if (kw)  return `<span class="kw">${kw}</span>`;
+    if (ty)  return `<span class="ty">${ty}</span>`;
+    if (num) return `<span class="num">${num}</span>`;
+    return _;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Chat helpers
+// ═══════════════════════════════════════════════════════════════════
+function addMessage(role, text) {
+  const div = document.createElement("div");
+  div.className     = "msg " + role;
+  div.textContent   = text;
+  div.style.whiteSpace = "pre-wrap";
+  div.dataset.role  = role;
+  chatMsgs.appendChild(div);
+  chatMsgs.scrollTop = chatMsgs.scrollHeight;
+  return div;
+}
+
+function updateLastAiMsg(text) {
+  const msgs = chatMsgs.querySelectorAll(".msg.ai");
+  if (msgs.length) { msgs[msgs.length - 1].textContent = text; msgs[msgs.length - 1].style.whiteSpace = "pre-wrap"; }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Copy button
+// ═══════════════════════════════════════════════════════════════════
+function copyCode() {
+  if (!mergedCode) return;
+  navigator.clipboard.writeText(mergedCode).then(() => {
+    const btn = document.getElementById("btn-copy");
+    btn.textContent = "Copied!";
+    setTimeout(() => btn.textContent = "Copy", 1500);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SSE helper (POST-based SSE via fetch + ReadableStream)
+// ═══════════════════════════════════════════════════════════════════
+async function openSSE(url, body) {
+  // We simulate an EventSource over a POST by wrapping fetch streaming.
+  // Returns an object with .onmessage / .onerror / .close()
+  const ctrl  = new AbortController();
+  let closed  = false;
+  const obj   = {
+    onmessage: null,
+    onerror:   null,
+    close() { closed = true; ctrl.abort(); },
+  };
+
+  (async () => {
+    try {
+      const resp = await fetch(url, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify(body),
+        signal:  ctrl.signal,
+      });
+
+      const reader = resp.body.getReader();
+      const dec    = new TextDecoder();
+      let   buf    = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done || closed) break;
+        buf += dec.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop();                 // keep incomplete chunk
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith("data:")) continue;
+          const data = line.slice(5).trim();
+          if (obj.onmessage) obj.onmessage({ data });
+        }
+      }
+    } catch (err) {
+      if (!closed && obj.onerror) obj.onerror(err);
+    }
+  })();
+
+  return obj;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Utils
+// ═══════════════════════════════════════════════════════════════════
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
+</body>
+</html>

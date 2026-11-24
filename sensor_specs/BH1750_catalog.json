@@ -1,0 +1,213 @@
+{
+  "sensor": "BH1750",
+  "sources": [
+    {
+      "filename": "BH1750_regs.h",
+      "sha256": "e29edbc2c45f57a52c2d7e2283ede18b44d7205b8c3447eb19b07f990ebbf63d",
+      "type": ".h",
+      "text": "#ifndef BH1750_H\n#define BH1750_H\n\n// No active state\n#define BH1750_POWER_DOWN 0x00\n\n// Waiting for measurement command\n#define BH1750_POWER_ON 0x01\n\n// Reset data register value - not accepted in POWER_DOWN mode\n#define BH1750_RESET 0x07\n\n// Default MTreg value\n#define BH1750_DEFAULT_MTREG 69\n\n#define UNCONFIGURED  0 \n       // Measurement at 1 lux resolution. Measurement time is approx 120ms.\n#define CONTINUOUS_HIGH_RES_MODE 0x10\n      // Measurement at 0.5 lux resolution. Measurement time is approx 120ms.\n#define CONTINUOUS_HIGH_RES_MODE_2 0x11\n      // Measurement at 4 lux resolution. Measurement time is approx 16ms.\n#define CONTINUOUS_LOW_RES_MODE 0x13\n      // Measurement at 1 lux resolution. Measurement time is approx 120ms.\n#define ONE_TIME_HIGH_RES_MODE 0x20\n      // Measurement at 0.5 lux resolution. Measurement time is approx 120ms.\n#define ONE_TIME_HIGH_RES_MODE_2 0x21\n      // Measurement at 4 lux resolution. Measurement time is approx 16ms.\n#define ONE_TIME_LOW_RES_MODE 0x23\n\n#define BH1750_CONV_FACTOR 1.2\n\n#define BH1750_I2CADDR 0x23\n\n//extern uint8 bh1750_mode = CONTINUOUS_HIGH_RES_MODE;\n//extern uint8 bh1750_addr = BH1750_I2CADDR;\n//extern uint8 bh1750_mode;\n//extern uint8 bh1750_addr;\n\nextern bool bh1750_init(uint8 mode);\nextern bool bh1750_setMTreg(uint8 MTreg);\nextern float bh1850_Read(void);\nextern void bh1850_Write(uint8 mode);\nextern void bh1850_PowerDown(void);\n\nvoid bh1750_WaitUs(uint16 microSecs);\nvoid bh1750_WaitMs(uint32_t period);\n\n//const float BH1750_CONV_FACTOR = 1.2;\n#endif",
+      "macros": [
+        {
+          "name": "BH1750_H",
+          "line": 2,
+          "definition": "#define BH1750_H"
+        },
+        {
+          "name": "BH1750_POWER_DOWN",
+          "line": 5,
+          "definition": "#define BH1750_POWER_DOWN 0x00"
+        },
+        {
+          "name": "BH1750_POWER_ON",
+          "line": 8,
+          "definition": "#define BH1750_POWER_ON 0x01"
+        },
+        {
+          "name": "BH1750_RESET",
+          "line": 11,
+          "definition": "#define BH1750_RESET 0x07"
+        },
+        {
+          "name": "BH1750_DEFAULT_MTREG",
+          "line": 14,
+          "definition": "#define BH1750_DEFAULT_MTREG 69"
+        },
+        {
+          "name": "UNCONFIGURED",
+          "line": 16,
+          "definition": "#define UNCONFIGURED  0 "
+        },
+        {
+          "name": "CONTINUOUS_HIGH_RES_MODE",
+          "line": 18,
+          "definition": "#define CONTINUOUS_HIGH_RES_MODE 0x10"
+        },
+        {
+          "name": "CONTINUOUS_HIGH_RES_MODE_2",
+          "line": 20,
+          "definition": "#define CONTINUOUS_HIGH_RES_MODE_2 0x11"
+        },
+        {
+          "name": "CONTINUOUS_LOW_RES_MODE",
+          "line": 22,
+          "definition": "#define CONTINUOUS_LOW_RES_MODE 0x13"
+        },
+        {
+          "name": "ONE_TIME_HIGH_RES_MODE",
+          "line": 24,
+          "definition": "#define ONE_TIME_HIGH_RES_MODE 0x20"
+        },
+        {
+          "name": "ONE_TIME_HIGH_RES_MODE_2",
+          "line": 26,
+          "definition": "#define ONE_TIME_HIGH_RES_MODE_2 0x21"
+        },
+        {
+          "name": "ONE_TIME_LOW_RES_MODE",
+          "line": 28,
+          "definition": "#define ONE_TIME_LOW_RES_MODE 0x23"
+        },
+        {
+          "name": "BH1750_CONV_FACTOR",
+          "line": 30,
+          "definition": "#define BH1750_CONV_FACTOR 1.2"
+        },
+        {
+          "name": "BH1750_I2CADDR",
+          "line": 32,
+          "definition": "#define BH1750_I2CADDR 0x23"
+        }
+      ]
+    },
+    {
+      "filename": "BH1750_40554675f4c2.h",
+      "sha256": "40554675f4c233ac7a295c107782fdd3e145d4a825fe1d5f920d2611286132f5",
+      "type": ".h",
+      "text": "/*\n\nThis is a library for the BH1750FVI Digital Light Sensor\nbreakout board.\n\nThe board uses I2C for communication. 2 pins are required to\ninterface to the device.\n\nDatasheet:\nhttp://rohmfs.rohm.com/en/products/databook/datasheet/ic/sensor/light/bh1750fvi-e.pdf\n\nWritten by Christopher Laws, March, 2013.\n\n*/\n\n#ifndef BH1750_h\n#define BH1750_h\n\n#if (ARDUINO >= 100)\n#include <Arduino.h>\n#else\n#include <WProgram.h>\n#endif\n#include \"Wire.h\"\n\n#define BH1750_DEBUG 0\n\n#define BH1750_I2CADDR 0x23\n\n// No active state\n#define BH1750_POWER_DOWN 0x00\n\n// Wating for measurment command\n#define BH1750_POWER_ON 0x01\n\n// Reset data register value - not accepted in POWER_DOWN mode\n#define BH1750_RESET 0x07\n\n// Start measurement at 1lx resolution. Measurement time is approx 120ms.\n#define BH1750_CONTINUOUS_HIGH_RES_MODE  0x10\n\n// Start measurement at 0.5lx resolution. Measurement time is approx 120ms.\n#define BH1750_CONTINUOUS_HIGH_RES_MODE_2  0x11\n\n// Start measurement at 4lx resolution. Measurement time is approx 16ms.\n#define BH1750_CONTINUOUS_LOW_RES_MODE  0x13\n\n// Start measurement at 1lx resolution. Measurement time is approx 120ms.\n// Device is automatically set to Power Down after measurement.\n#define BH1750_ONE_TIME_HIGH_RES_MODE  0x20\n\n// Start measurement at 0.5lx resolution. Measurement time is approx 120ms.\n// Device is automatically set to Power Down after measurement.\n#define BH1750_ONE_TIME_HIGH_RES_MODE_2  0x21\n\n// Start measurement at 1lx resolution. Measurement time is approx 120ms.\n// Device is automatically set to Power Down after measurement.\n#define BH1750_ONE_TIME_LOW_RES_MODE  0x23\n\nclass BH1750 {\n public:\n  BH1750();\n  void begin(uint8_t mode = BH1750_CONTINUOUS_HIGH_RES_MODE);\n  void configure(uint8_t mode);\n  uint16_t readLightLevel(void);\n\n private:\n  void write8(uint8_t data);\n\n};\n\n#endif",
+      "macros": [
+        {
+          "name": "BH1750_h",
+          "line": 17,
+          "definition": "#define BH1750_h"
+        },
+        {
+          "name": "BH1750_DEBUG",
+          "line": 26,
+          "definition": "#define BH1750_DEBUG 0"
+        },
+        {
+          "name": "BH1750_I2CADDR",
+          "line": 28,
+          "definition": "#define BH1750_I2CADDR 0x23"
+        },
+        {
+          "name": "BH1750_POWER_DOWN",
+          "line": 31,
+          "definition": "#define BH1750_POWER_DOWN 0x00"
+        },
+        {
+          "name": "BH1750_POWER_ON",
+          "line": 34,
+          "definition": "#define BH1750_POWER_ON 0x01"
+        },
+        {
+          "name": "BH1750_RESET",
+          "line": 37,
+          "definition": "#define BH1750_RESET 0x07"
+        },
+        {
+          "name": "BH1750_CONTINUOUS_HIGH_RES_MODE",
+          "line": 40,
+          "definition": "#define BH1750_CONTINUOUS_HIGH_RES_MODE  0x10"
+        },
+        {
+          "name": "BH1750_CONTINUOUS_HIGH_RES_MODE_2",
+          "line": 43,
+          "definition": "#define BH1750_CONTINUOUS_HIGH_RES_MODE_2  0x11"
+        },
+        {
+          "name": "BH1750_CONTINUOUS_LOW_RES_MODE",
+          "line": 46,
+          "definition": "#define BH1750_CONTINUOUS_LOW_RES_MODE  0x13"
+        },
+        {
+          "name": "BH1750_ONE_TIME_HIGH_RES_MODE",
+          "line": 50,
+          "definition": "#define BH1750_ONE_TIME_HIGH_RES_MODE  0x20"
+        },
+        {
+          "name": "BH1750_ONE_TIME_HIGH_RES_MODE_2",
+          "line": 54,
+          "definition": "#define BH1750_ONE_TIME_HIGH_RES_MODE_2  0x21"
+        },
+        {
+          "name": "BH1750_ONE_TIME_LOW_RES_MODE",
+          "line": 58,
+          "definition": "#define BH1750_ONE_TIME_LOW_RES_MODE  0x23"
+        }
+      ]
+    },
+    {
+      "filename": "BH1750_ac3e1a026e67.h",
+      "sha256": "ac3e1a026e67f190f5f1c59d1a76c7376f9dabbb4cf507933cb94688e63aebfd",
+      "type": ".h",
+      "text": "/*\n\n  This is a library for the BH1750FVI Digital Light Sensor breakout board.\n\n  The BH1750 board uses I2C for communication. Two pins are required to\n  interface to the device. Configuring the I2C bus is expected to be done\n  in user code. The BH1750 library doesn't do this automatically.\n\n  Datasheet:\n  http://www.elechouse.com/elechouse/images/product/Digital%20light%20Sensor/bh1750fvi-e.pdf\n\n  Written by Christopher Laws, March, 2013.\n\n*/\n\n#ifndef BH1750_h\n#define BH1750_h\n\n#if (ARDUINO >= 100)\n#  include <Arduino.h>\n#else\n#  include <WProgram.h>\n#endif\n\n#include \"Wire.h\"\n\n// Uncomment, to enable debug messages\n// #define BH1750_DEBUG\n\n// No active state\n#define BH1750_POWER_DOWN 0x00\n\n// Waiting for measurement command\n#define BH1750_POWER_ON 0x01\n\n// Reset data register value - not accepted in POWER_DOWN mode\n#define BH1750_RESET 0x07\n\n// Default MTreg value\n#define BH1750_DEFAULT_MTREG 69\n#define BH1750_MTREG_MIN 31\n#define BH1750_MTREG_MAX 254\n\nclass BH1750 {\n\npublic:\n  enum Mode {\n    // same as Power Down\n    UNCONFIGURED = 0,\n    // Measurement at 1 lux resolution. Measurement time is approx 120ms.\n    CONTINUOUS_HIGH_RES_MODE = 0x10,\n    // Measurement at 0.5 lux resolution. Measurement time is approx 120ms.\n    CONTINUOUS_HIGH_RES_MODE_2 = 0x11,\n    // Measurement at 4 lux resolution. Measurement time is approx 16ms.\n    CONTINUOUS_LOW_RES_MODE = 0x13,\n    // Measurement at 1 lux resolution. Measurement time is approx 120ms.\n    ONE_TIME_HIGH_RES_MODE = 0x20,\n    // Measurement at 0.5 lux resolution. Measurement time is approx 120ms.\n    ONE_TIME_HIGH_RES_MODE_2 = 0x21,\n    // Measurement at 4 lux resolution. Measurement time is approx 16ms.\n    ONE_TIME_LOW_RES_MODE = 0x23\n  };\n\n  BH1750(byte addr = 0x23);\n  bool begin(Mode mode = CONTINUOUS_HIGH_RES_MODE, byte addr = 0x23,\n             TwoWire* i2c = nullptr);\n  bool configure(Mode mode);\n  bool setMTreg(byte MTreg);\n  bool measurementReady(bool maxWait = false);\n  float readLightLevel();\n\nprivate:\n  byte BH1750_I2CADDR;\n  byte BH1750_MTreg = (byte)BH1750_DEFAULT_MTREG;\n  // Correction factor used to calculate lux. Typical value is 1.2 but can\n  // range from 0.96 to 1.44. See the data sheet (p.2, Measurement Accuracy)\n  // for more information.\n  const float BH1750_CONV_FACTOR = 1.2;\n  Mode BH1750_MODE = UNCONFIGURED;\n  TwoWire* I2C;\n  unsigned long lastReadTimestamp;\n};\n\n#endif\n",
+      "macros": [
+        {
+          "name": "BH1750_h",
+          "line": 17,
+          "definition": "#define BH1750_h"
+        },
+        {
+          "name": "BH1750_POWER_DOWN",
+          "line": 31,
+          "definition": "#define BH1750_POWER_DOWN 0x00"
+        },
+        {
+          "name": "BH1750_POWER_ON",
+          "line": 34,
+          "definition": "#define BH1750_POWER_ON 0x01"
+        },
+        {
+          "name": "BH1750_RESET",
+          "line": 37,
+          "definition": "#define BH1750_RESET 0x07"
+        },
+        {
+          "name": "BH1750_DEFAULT_MTREG",
+          "line": 40,
+          "definition": "#define BH1750_DEFAULT_MTREG 69"
+        },
+        {
+          "name": "BH1750_MTREG_MIN",
+          "line": 41,
+          "definition": "#define BH1750_MTREG_MIN 31"
+        },
+        {
+          "name": "BH1750_MTREG_MAX",
+          "line": 42,
+          "definition": "#define BH1750_MTREG_MAX 254"
+        }
+      ]
+    },
+    {
+      "filename": "BH1750_dabbcb84f9dd.h",
+      "sha256": "dabbcb84f9dd7c2719d7a12c1384218c7ca0da677a87c5108295b96ea1325342",
+      "type": ".h",
+      "text": "#include <stdint.h>\n#define\tBH1750_ADDR_WRITE\t0x46\t//01000110\n#define\tBH1750_ADDR_READ\t0x47\t//01000111\n\ntypedef enum\n{\n\tPOWER_OFF_CMD\t=\t0x00,\t//断电：无激活状态\n\tPOWER_ON_CMD\t=\t0x01,\t//通电：等待测量指令\n\tRESET_REGISTER\t=\t0x07,\t//重置数字寄存器（在断电状态下不起作用）\n\tCONT_H_MODE\t\t=\t0x10,\t//连续H分辨率模式：在11x分辨率下开始测量，测量时间120ms\n\tCONT_H_MODE2\t=\t0x11,\t//连续H分辨率模式2：在0.51x分辨率下开始测量，测量时间120ms\n\tCONT_L_MODE\t\t=\t0x13,\t//连续L分辨率模式：在411分辨率下开始测量，测量时间16ms\n\tONCE_H_MODE\t\t=\t0x20,\t//一次高分辨率模式：在11x分辨率下开始测量，测量时间120ms，测量后自动设置为断电模式\n\tONCE_H_MODE2\t=\t0x21,\t//一次高分辨率模式2：在0.51x分辨率下开始测量，测量时间120ms，测量后自动设置为断电模式\n\tONCE_L_MODE\t\t=\t0x23\t//一次低分辨率模式：在411x分辨率下开始测量，测量时间16ms，测量后自动设置为断电模式\n} BH1750_MODE;\n\nuint8_t\tBH1750_Send_Cmd(BH1750_MODE cmd);\nuint16_t BH1750_Dat_To_Lux(uint8_t* dat);\n\n",
+      "macros": [
+        {
+          "name": "BH1750_ADDR_WRITE",
+          "line": 2,
+          "definition": "#define\tBH1750_ADDR_WRITE\t0x46\t//01000110"
+        },
+        {
+          "name": "BH1750_ADDR_READ",
+          "line": 3,
+          "definition": "#define\tBH1750_ADDR_READ\t0x47\t//01000111"
+        }
+      ]
+    }
+  ],
+  "schema_version": 1
+}

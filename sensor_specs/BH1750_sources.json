@@ -1,0 +1,45 @@
+{
+  "sensor": "BH1750",
+  "sources": [
+    {
+      "filename": "BH1750_regs.h",
+      "kind": "header",
+      "url": "https://raw.githubusercontent.com/koptserg/motion/main/Source/bh1750.h",
+      "repository": "koptserg/motion",
+      "sha256": "e29edbc2c45f57a52c2d7e2283ede18b44d7205b8c3447eb19b07f990ebbf63d",
+      "size_bytes": 1580,
+      "retrieved_utc": "2026-11-23T08:38:03.622700+00:00",
+      "verified_by_manufacturer": false
+    },
+    {
+      "filename": "BH1750_40554675f4c2.h",
+      "kind": "header",
+      "url": "https://raw.githubusercontent.com/kmaximv/Wi-Fi-Sensor/master/esp_sensor/libraries/BH1750/BH1750.h",
+      "repository": "kmaximv/Wi-Fi-Sensor",
+      "sha256": "40554675f4c233ac7a295c107782fdd3e145d4a825fe1d5f920d2611286132f5",
+      "size_bytes": 1829,
+      "retrieved_utc": "2026-11-23T08:38:03.973259+00:00",
+      "verified_by_manufacturer": false
+    },
+    {
+      "filename": "BH1750_ac3e1a026e67.h",
+      "kind": "header",
+      "url": "https://raw.githubusercontent.com/claws/BH1750/master/src/BH1750.h",
+      "repository": "claws/BH1750",
+      "sha256": "ac3e1a026e67f190f5f1c59d1a76c7376f9dabbb4cf507933cb94688e63aebfd",
+      "size_bytes": 2388,
+      "retrieved_utc": "2026-11-23T08:38:04.326023+00:00",
+      "verified_by_manufacturer": false
+    },
+    {
+      "filename": "BH1750_dabbcb84f9dd.h",
+      "kind": "header",
+      "url": "https://raw.githubusercontent.com/TsingWei/stm32_iot_light_sensor/master/Inc/bh1750_i2c_drv.h",
+      "repository": "TsingWei/stm32_iot_light_sensor",
+      "sha256": "dabbcb84f9dd7c2719d7a12c1384218c7ca0da677a87c5108295b96ea1325342",
+      "size_bytes": 1133,
+      "retrieved_utc": "2026-11-23T08:38:04.641409+00:00",
+      "verified_by_manufacturer": false
+    }
+  ]
+}

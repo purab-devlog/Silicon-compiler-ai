@@ -1,0 +1,1 @@
+{"selected_peripherals":["I2C1","RCC","GPIOB"],"operations":["enable clock","configure pins","initialize bus","transact with sensor"],"dependencies":["clock before bus"],"assumptions":[],"unverified_requirements":["verify board pin mapping"]}

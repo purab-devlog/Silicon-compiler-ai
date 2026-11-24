@@ -1,0 +1,23 @@
+{
+  "session_id": "315705b571124fa7a09cbd7219953c83",
+  "board_query": "STM32F411",
+  "mcu": "STM32F411",
+  "cpu": "CM4",
+  "svd_path": "C:\\silicon-compiler\\hardware_specs\\STM32F411.svd",
+  "catalog_path": "C:\\silicon-compiler\\hardware_specs\\STM32F411_catalog.json",
+  "sensors": [],
+  "sensor_status": {},
+  "pin_map": null,
+  "compiler": null,
+  "compiler_flags": [],
+  "toolchain": {
+    "architecture": "arm",
+    "compiler": "arm-none-eabi-gcc",
+    "flags": [
+      "-mcpu=cortex-m4",
+      "-mthumb"
+    ],
+    "available": true,
+    "cpu": "CM4"
+  }
+}
